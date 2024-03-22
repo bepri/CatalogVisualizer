@@ -1,6 +1,5 @@
 // Copyright 2023, Josh Mandzak & Swasti Mishra
 
-// import data from "./scraper/all_catalogs.json"
 import data from "./catalogs.json";
 
 let dragSrcEl;
@@ -95,29 +94,59 @@ function catalogClicked() {
   // Clear out whatever is in there currently
   boxSection.innerHTML = "";
 
+  // Calculate the highest-numbered semester (ie the last one)
+  // Just 8 for any 4-year degree, for example
+  const finalSemester = Object.values(data[catalog]["nodes"]).reduce((a, b) =>
+    a["term"] > b["term"] ? a : b
+  )["term"];
+
   // Grab the json and write all the classes
   // Some variables to keep up with classes
-  let all_classes = [];
+  let all_class_names = new Array(finalSemester)
+    .fill([])
+    .map(() => new Array(0).fill([]));
   let htmlString = "";
 
   htmlString += '<div class="grid">';
 
-  for (var semesters in data[catalog]["terms"]) {
-    // let semesterPrint = parseInt(semesters) + 1 ;
-    // boxSection.innerHTML += '<div class="semesterCol"> Semester '+semesterPrint+'</div>' ;
-    for (var classes in data[catalog]["terms"][semesters]) {
+  //   for (var semesters in data_old['cs-2019']["terms"]) {
+  //     // let semesterPrint = parseInt(semesters) + 1 ;
+  //     // boxSection.innerHTML += '<div class="semesterCol"> Semester '+semesterPrint+'</div>' ;
+  //     for (var classes in data[catalog]["terms"][semesters]) {
+  //       htmlString +=
+  //         '<div class="cell"><div class="box" draggable="true"><span class="span" id="close">x</span>' +
+  //         data[catalog]["terms"][semesters][classes] +
+  //         "</div></div>";
+  //       all_classes.push(data[catalog]["terms"][semesters][classes]);
+  //     }
+  //     while (classes < 5) {
+  //       htmlString +=
+  //         '<div class="cell"><div class="box" draggable="true"><span class="span" id="close">x</span></div></div>';
+  //       classes = Number(classes) + 1;
+  //     }
+  //     // htmlString += '<br><div style="padding:30px"></div' ;
+  //   }
+
+  // Gets the number of the last semester (probably just 8 for a 4-year degree)
+  for (const courseIdx in data[catalog]["nodes"]) {
+    const course = data[catalog]["nodes"][courseIdx];
+    all_class_names[Number(course["term"]) - 1].push(courseIdx);
+  }
+
+  for (const semester of all_class_names) {
+    for (const course of semester) {
       htmlString +=
-        '<div class="cell"><div class="box" draggable="true"><span class="span" id="close">x</span>' +
-        data[catalog]["terms"][semesters][classes] +
+        '<div class="cell"><div class="box" draggable="true" data-courseid="' +
+        course +
+        '"><span class="span" id="close">x</span>' +
+        data[catalog]["nodes"][course]["title"] +
         "</div></div>";
-      all_classes.push(data[catalog]["terms"][semesters][classes]);
     }
-    while (classes < 5) {
+    // add blank cards so each row has 5
+    for (let blanks = 5 - semester.length; blanks >= 0; blanks--) {
       htmlString +=
         '<div class="cell"><div class="box" draggable="true"><span class="span" id="close">x</span></div></div>';
-      classes = Number(classes) + 1;
     }
-    // htmlString += '<br><div style="padding:30px"></div' ;
   }
 
   htmlString += "</div>";
@@ -141,8 +170,9 @@ function catalogClicked() {
   }
 
   // initialize highlighted prereq classes list
+
   highlighted_classes = [];
-  for (let i = 0; i < all_classes.length; i++) {
+  for (let i = 0; i < all_class_names.flat().length; i++) {
     highlighted_classes.push(false);
   }
 
@@ -194,68 +224,29 @@ function generateReqs(prereq) {
   let all_classes = document.getElementsByClassName("box");
   let req_matrix = new Array(all_classes.length);
   for (let i = 0; i < req_matrix.length; i++) {
-    req_matrix[i] = new Array(all_classes.length);
+    req_matrix[i] = new Array(all_classes.length).fill(false);
   }
 
-  const class_regex_string = /[A-Z][A-Z]+ [0-9][0-9]+/g;
+  const requisites =
+    data[catalog]["edges"][prereq ? "prerequisites" : "corequisites"];
+
   for (let i = 0; i < all_classes.length; i++) {
-    // Grab the actual class names from inside the string
-    let current_classes = [
-      ...all_classes[i].innerText.matchAll(class_regex_string),
-    ];
-    if (current_classes.length < 1) {
-      continue;
-    }
-
-    // Find all of the reqs for each class listed
-    let reqs = [];
-    for (let j = 0; j < current_classes.length; j++) {
-      let temp = [];
-
-      // Try catch block here to catch classes that are missing from scraper
-      // find all classes in req string, put in temp array
-      try {
-        if (prereq) {
-          temp = [
-            ...data[catalog]["all_courses"][current_classes[j][0]][
-              "prereqs"
-            ].matchAll(class_regex_string),
-          ];
-        } else {
-          temp = [
-            ...data[catalog]["all_courses"][current_classes[j][0]][
-              "coreqs"
-            ].matchAll(class_regex_string),
-          ];
-        }
-      } catch (error) {
-        console.log("Could not find class %s", current_classes[j][0]);
-      }
-
-      // add all classes from temp array into req array
-      for (let k = 0; k < temp.length; k++) {
-        reqs.push(temp[k][0]);
-      }
-    }
-
-    // Now check against all of the other classes
-    let matches = [];
     for (let j = 0; j < all_classes.length; j++) {
-      // don't check the same class
-      if (i == j) {
+      // get the course IDs
+      const class_i = $(all_classes[i]).attr("data-courseid");
+      const class_j = $(all_classes[j]).attr("data-courseid");
+
+      // these can be undefined for the blank filler boxes
+      if (class_i == undefined || class_j == undefined) {
         continue;
       }
 
-      // Loop through all req possibilities
-      matches = [];
-      for (let k = 0; k < reqs.length; k++) {
-        // See if req is in class string, if it is then set adj matrix and break
-        matches = all_classes[j].innerText.match(reqs[k]);
-        if (matches) {
-          req_matrix[i][j] = 1;
-          matches = [];
-          break;
-        }
+      const reqs_map = requisites.map((edge) => JSON.stringify(edge));
+      if (reqs_map.includes(JSON.stringify([class_i, class_j]))) {
+        req_matrix[i][j] = true;
+      }
+      if (reqs_map.includes(JSON.stringify([class_j, class_i]))) {
+        req_matrix[j][i] = true;
       }
     }
   }
@@ -275,29 +266,28 @@ function drawArrows(req_matrix, prereq) {
   let highlighted_from_boxes = [];
   let highlighted_to_boxes = [];
 
-  let from_box = "";
-  let all_lines = [];
+  let to_box = "";
   let line = null;
   for (let i = 0; i < req_matrix.length; i++) {
-    from_box = "box" + i;
+    to_box = "box" + i;
     for (let j = 0; j < req_matrix.length; j++) {
       if (req_matrix[j][i]) {
-        let to_box = "box" + j;
+        let from_box = "box" + j;
 
         // Line style changes based on if it's a prereq or coreq
         if (prereq) {
           // we need to add highlighted prereqs last to make them pop up over non-highlighted ones
           if (!highlighted_classes[i]) {
             line = new LeaderLine(
-              document.getElementById(from_box),
-              document.getElementById(to_box),
+                document.getElementById(from_box),
+                document.getElementById(to_box),
               {
                 path: arrow_style[0],
+                color: "black",
                 startSocket: "bottom",
                 endSocket: "top",
                 // outline: true,
                 size: 2,
-                color: "black",
                 // endPlugOutline: true,
                 endPlugSize: 1.5,
                 startSocketGravity: 10,
@@ -325,7 +315,6 @@ function drawArrows(req_matrix, prereq) {
             }
           );
         }
-        all_lines.push(line);
       }
     }
   }
@@ -352,13 +341,6 @@ function drawArrows(req_matrix, prereq) {
 
   // now set the z index of all of the leader lines to be 0
   $(".leader-line").css("z-index", "-1");
-
-  // let colors = ["aqua", "blue", "blueviolet", "brown", "cadetblue", "coral", "cyan", "darkgoldenrod", "deeppink", "greenyellow", "green", "lightpink", "palegreen", "steelblue", "wheat", "slategray", "silver", "plum"]
-  // for(let i = 0; i < all_lines.length; i++) {
-  //     all_lines[i].outlineColor = colors[i % colors.length];
-  //     all_lines[i].startPlugColor = colors[i % colors.length];
-  //     all_lines[i].endPlugColor = colors[i % colors.length];
-  // }
 }
 
 // Enter or exit highlight mode
