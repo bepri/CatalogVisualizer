@@ -9,5 +9,19 @@ module.exports = {
         "filename": "bundle.js"
     },
     "devtool": "source-map",
-    "mode": "development"
+    "mode": "development",
+    // leader-line is very old code, so this is necessary to properly import it.
+    // If you follow the documentation from leader-line, it says to include it as a <script> tag
+    // However, ESLint cannot read this, so we do this so it can be imported in index.js
+    "module": {
+        "rules": [
+            {
+                test: path.resolve(__dirname, "node_modules/leader-line/"),
+                use: [{
+                    loader: "skeleton-loader",
+                    options: {procedure: content => `${content}export default LeaderLine`}
+                }]
+            }
+        ]
+    }
 }
