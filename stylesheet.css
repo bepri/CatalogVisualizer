@@ -87,26 +87,6 @@ br{
     align-items: center;
 }
 
-.TRMenu{
-    width: fit-content; 
-    margin-top: 5px;
-}
-
-.prereqForm {
-    visibility:hidden;
-    display:none;
-}
-
-.coreqForm {
-    visibility:hidden;
-    display:none;
-}
-
-.newClassForm {
-    visibility:hidden;
-    display:none;
-}
-
 table {
     margin: 0 auto;
     font-size: large;

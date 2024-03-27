@@ -1,6 +1,7 @@
 // Copyright 2023, Josh Mandzak & Swasti Mishra
 
 import data from "./catalogs.json";
+import LeaderLine from "leader-line";
 
 let dragSrcEl;
 let highlighted_classes = [];
@@ -9,46 +10,28 @@ let highlight_colors = ["red", "blue", "green", "yellow", "turquoise"];
 
 // Dropdown Menu Scripts
 $(function () {
-  // Set the onclick of the buttons
-  let dropDownBox = document.getElementById("dropDownWrite");
-  dropDownBox.onclick = catalogClicked;
+  // Detect when a new catalog is picked
+  $("#catalogSelect").on("click", catalogSelected);
 
-  let classDropDown = document.getElementById("dropDownClass");
-  classDropDown.addEventListener("change", classClicked);
-  // classDropDown.onchange = classClicked;
+  // Handle class searches
+  $("#dropDownClass").on("click", classClicked);
 
-  let updatePrereqBox = document.getElementById("updatePrereqs");
-  updatePrereqBox.onclick = generateReqs;
+  // Manual update of prerequisites (likely not necessary - remove?)
+  $("#updatePrereqs").on("click", generateReqs);
 
-  let editClassesBox = document.getElementById("editClasses");
-  editClassesBox.onclick = editClasses;
+  // Manual class editing
+  $("#editClasses").on("click", editClasses);
 
-  let printBox = document.getElementById("printButton");
-  printBox.onclick = printFunction;
+  // Handlers for adding a new prerequisite
+  $("#editPrereqs").on("click", togglePrereqForm);
+  $("#prereqForm").on("submit", submitPrereqForm);
 
-  // let addClassBox = document.getElementById("addClass");
-  // addClassBox.onclick = openClassForm;
+  // Handlers for adding a new corequisite
+  $("#editCoreqs").on("click", toggleCoreqForm);
+  $("#coreqForm").on("submit", submitCoreqForm);
 
-  let addPrereqBox = document.getElementById("addPrereq");
-  addPrereqBox.onclick = openForm;
-
-  let editCoreqBox = document.getElementById("editCoreq");
-  editCoreqBox.onclick = openCoreqForm;
-
-  let prereqForm = document.getElementById("prereqForm");
-  prereqForm.addEventListener("submit", submitPrereqForm);
-
-  let coreqForm = document.getElementById("coreqForm");
-  coreqForm.addEventListener("submit", submitCoreqForm);
-
-  // let classForm = document.getElementById('newClassForm');
-  // classForm.addEventListener('submit', classForm);
-
-  let cancelPrereqFormButton = document.getElementById("cancelButton");
-  cancelPrereqFormButton.onclick = closePrereqForm;
-
-  let cancelCoreqFormButton = document.getElementById("cancelCoreqButton");
-  cancelCoreqFormButton.onclick = closeCoreqForm;
+  // Pretty-printing button
+  $("#pprint").on("click", prettyPrint);
 
   let highlightButton = document.getElementById("highlightPrereqs");
   highlightButton.onclick = highlightPrereqs;
@@ -60,23 +43,23 @@ $(function () {
   changeHighlightColor.onclick = changeArrowColor;
 
   // Write the dropdown box options, display classes of first possible catalog
-  for (var catalogs in data) {
-    $("#dropDownWrite").append(
-      '<option value="' + catalogs + '">' + catalogs + "</option>"
+  for (let catalogs in data) {
+    $("#catalogSelect").append(
+      `<option value="${catalogs}">${catalogs}</option>`
     );
   }
 
-  catalogClicked();
+  catalogSelected();
 });
 
 // Dropdown menu kind of works- next step is only writing the applicable catalog to the page
-function catalogClicked() {
-  let catalog = $("#dropDownWrite").val();
+function catalogSelected() {
+  let catalog = $("#catalogSelect").val();
   let all_course_names = [];
 
   // Create the class dropdown box options
   $("#classes").empty();
-  $("#classes").append('<option value="">' + "" + "</option>");
+  $("#classes").append('<option value=""></option>');
   for (let course in data[catalog]["nodes"]) {
     all_course_names.push(data[catalog]["nodes"][course]["title"]);
   }
@@ -90,9 +73,6 @@ function catalogClicked() {
         "</option>"
     );
   }
-
-  // Clear out whatever is in there currently
-  boxSection.innerHTML = "";
 
   // Calculate the highest-numbered semester (ie the last one)
   // Just 8 for any 4-year degree, for example
@@ -109,24 +89,6 @@ function catalogClicked() {
 
   htmlString += '<div class="grid">';
 
-  //   for (var semesters in data_old['cs-2019']["terms"]) {
-  //     // let semesterPrint = parseInt(semesters) + 1 ;
-  //     // boxSection.innerHTML += '<div class="semesterCol"> Semester '+semesterPrint+'</div>' ;
-  //     for (var classes in data[catalog]["terms"][semesters]) {
-  //       htmlString +=
-  //         '<div class="cell"><div class="box" draggable="true"><span class="span" id="close">x</span>' +
-  //         data[catalog]["terms"][semesters][classes] +
-  //         "</div></div>";
-  //       all_classes.push(data[catalog]["terms"][semesters][classes]);
-  //     }
-  //     while (classes < 5) {
-  //       htmlString +=
-  //         '<div class="cell"><div class="box" draggable="true"><span class="span" id="close">x</span></div></div>';
-  //       classes = Number(classes) + 1;
-  //     }
-  //     // htmlString += '<br><div style="padding:30px"></div' ;
-  //   }
-
   // Gets the number of the last semester (probably just 8 for a 4-year degree)
   for (const courseIdx in data[catalog]["nodes"]) {
     const course = data[catalog]["nodes"][courseIdx];
@@ -136,9 +98,7 @@ function catalogClicked() {
   for (const semester of all_class_names) {
     for (const course of semester) {
       htmlString +=
-        '<div class="cell"><div class="box" draggable="true" data-courseid="' +
-        course +
-        '"><span class="span" id="close">x</span>' +
+        `<div class="cell" draggable="true"><div class="box" data-courseid="${course}"><span class="span" id="close">x</span>` +
         data[catalog]["nodes"][course]["title"] +
         "</div></div>";
     }
@@ -150,7 +110,8 @@ function catalogClicked() {
   }
 
   htmlString += "</div>";
-  boxSection.innerHTML = htmlString;
+
+  $("#boxSection").html(htmlString);
 
   // set onclick of all spans
   let spans = document.getElementsByClassName("span");
@@ -159,7 +120,7 @@ function catalogClicked() {
   }
 
   // Add drag and drop listening to each
-  let items = document.getElementsByClassName("box");
+  let items = document.getElementsByClassName("cell");
   for (let i = 0; i < items.length; i++) {
     items[i].addEventListener("dragstart", handleDragStart);
     items[i].addEventListener("dragend", handleDragEnd);
@@ -176,19 +137,20 @@ function catalogClicked() {
     highlighted_classes.push(false);
   }
 
-  // Now draw the req lines
-  // Clear out any req lines
-  $(".leader-line").remove();
-  generateReqs(true);
-  generateReqs(false);
+  resetLines();
+
+  // Finally, populate the list of classes into the co/pre-req add/remove forms
+  for (const course of all_class_names.flat()) {
+    $(".classDropdown").append(
+      `<option value=${course}>${data[catalog]["nodes"][course]["title"]}</option>`
+    );
+  }
 }
 
 function classClicked() {
   let course = $("#dropDownClass").val();
-  let catalog = $("#dropDownWrite").val();
+  let catalog = $("#catalogSelect").val();
   let message = "";
-
-  console.log(data[catalog]["all_courses"][course]);
 
   message += "Title: " + data[catalog]["all_courses"][course]["title"] + "\n\n";
   message +=
@@ -209,26 +171,22 @@ function classClicked() {
 }
 
 // Parameter prereq is true if generating prereqs, false for coreqs
-function generateReqs(prereq) {
-  // special case for when button is clicked and the parameter is null
-  if (prereq != true && prereq != false) {
-    // Clear out any req lines
-    $(".leader-line").remove();
-    generateReqs(false);
-    prereq = true;
-  }
-
-  let catalog = $("#dropDownWrite").val();
+function generateReqs() {
+  let catalog = $("#catalogSelect").val();
 
   // Now let's create the adjacency matrix for this catalog to do reqs
   let all_classes = document.getElementsByClassName("box");
-  let req_matrix = new Array(all_classes.length);
-  for (let i = 0; i < req_matrix.length; i++) {
-    req_matrix[i] = new Array(all_classes.length).fill(false);
-  }
 
-  const requisites =
-    data[catalog]["edges"][prereq ? "prerequisites" : "corequisites"];
+  let pre_matrix = new Array(all_classes.length)
+    .fill(false)
+    .map(() => new Array(all_classes.length).fill(false));
+
+  let co_matrix = new Array(all_classes.length)
+    .fill(false)
+    .map(() => new Array(all_classes.length).fill(false));
+
+  const prereqs = data[catalog]["edges"]["prerequisites"];
+  const coreqs = data[catalog]["edges"]["corequisites"];
 
   for (let i = 0; i < all_classes.length; i++) {
     for (let j = 0; j < all_classes.length; j++) {
@@ -241,106 +199,197 @@ function generateReqs(prereq) {
         continue;
       }
 
-      const reqs_map = requisites.map((edge) => JSON.stringify(edge));
-      if (reqs_map.includes(JSON.stringify([class_i, class_j]))) {
-        req_matrix[i][j] = true;
+      // JS can't really handle most operations on 2D arrays, so we serialize it
+      // and work with strings instead
+      const pre_map = prereqs.map((edge) => JSON.stringify(edge));
+      const co_map = coreqs.map((edge) => JSON.stringify(edge));
+      if (pre_map.includes(JSON.stringify([class_i, class_j]))) {
+        pre_matrix[i][j] = true;
       }
-      if (reqs_map.includes(JSON.stringify([class_j, class_i]))) {
-        req_matrix[j][i] = true;
+      if (pre_map.includes(JSON.stringify([class_j, class_i]))) {
+        pre_matrix[j][i] = true;
+      }
+      if (co_map.includes(JSON.stringify([class_i, class_j]))) {
+        co_matrix[i][j] = true;
+      }
+      if (co_map.includes(JSON.stringify([class_j, class_i]))) {
+        co_matrix[j][i] = true;
       }
     }
   }
 
-  drawArrows(req_matrix, prereq);
+  drawArrows(pre_matrix, co_matrix);
 }
 
 // Draw arrows
-function drawArrows(req_matrix, prereq) {
-  // Now lets actually go through and draw all the arrows
-  // To do this, we need to add ids to all the box divs
-  let boxes = document.getElementsByClassName("box");
-  for (let i = 0; i < boxes.length; i++) {
-    boxes[i].id = "box" + i;
+// function drawArrows(req_matrix, prereq) {
+//   // Now lets actually go through and draw all the arrows
+//   // To do this, we need to add ids to all the box divs
+//   let boxes = document.getElementsByClassName("box");
+
+//   for (let i = 0; i < boxes.length; i++) {
+//     boxes[i].id = "box" + i;
+//   }
+
+//   let highlighted_from_boxes = [];
+//   let highlighted_to_boxes = [];
+
+//   let to_box = "";
+//   for (let i = 0; i < req_matrix.length; i++) {
+//     to_box = "box" + i;
+//     for (let j = 0; j < req_matrix.length; j++) {
+//       if (req_matrix[j][i]) {
+//         let from_box = "box" + j;
+
+//         // Line style changes based on if it's a prereq or coreq
+//         if (prereq) {
+//           // we need to add highlighted prereqs last to make them pop up over non-highlighted ones
+//           if (!highlighted_classes[i]) {
+//             new LeaderLine(
+//               document.getElementById(from_box),
+//               document.getElementById(to_box),
+//               {
+//                 path: arrow_style[0],
+//                 color: "black",
+//                 startSocket: "bottom",
+//                 endSocket: "top",
+//                 size: 2,
+//                 endPlugSize: 1.5,
+//                 startSocketGravity: 10,
+//                 endSocketGravity: 10,
+//               }
+//             );
+//           } else {
+//             highlighted_from_boxes.push(from_box);
+//             highlighted_to_boxes.push(to_box);
+//           }
+//         } else {
+//           new LeaderLine(
+//             document.getElementById(from_box),
+//             document.getElementById(to_box),
+//             {
+//               path: "straight",
+//               color: "black",
+//               startPlug: "behind",
+//               endPlug: "behind",
+//               size: 2,
+//               startSocketGravity: 10,
+//               endSocketGravity: 10,
+//               dash: { len: 2, gap: 4 },
+//               endPlugSize: 0,
+//             }
+//           );
+//         }
+//       }
+//     }
+//   }
+
+//   // create the highlighted lines
+//   for (let i = 0; i < highlighted_from_boxes.length; i++) {
+//     new LeaderLine(
+//       document.getElementById(highlighted_from_boxes[i]),
+//       document.getElementById(highlighted_to_boxes[i]),
+//       {
+//         path: arrow_style[0],
+//         startSocket: "bottom",
+//         endSocket: "top",
+//         // outline: true,
+//         size: 2,
+//         color: highlight_colors[0],
+//         // endPlugOutline: true,
+//         endPlugSize: 1.5,
+//         startSocketGravity: 10,
+//         endSocketGravity: 10,
+//       }
+//     );
+//   }
+
+//   // now set the z index of all of the leader lines to be 0
+//   $(".leader-line").css("z-index", "-1");
+// }
+
+function drawArrows(prereqs, coreqs) {
+  let boxes = $(".box").toArray();
+
+  for (let box in boxes) {
+    boxes[box].id = `box${box}`;
+  }
+
+  const leader_line_defaults = {
+    color: "black",
+    size: 2,
+    startSocketGravity: 10,
+    endSocketGravity: 10
   }
 
   let highlighted_from_boxes = [];
   let highlighted_to_boxes = [];
 
-  let to_box = "";
-  let line = null;
-  for (let i = 0; i < req_matrix.length; i++) {
-    to_box = "box" + i;
-    for (let j = 0; j < req_matrix.length; j++) {
-      if (req_matrix[j][i]) {
-        let from_box = "box" + j;
+  let to_box, from_box;
 
-        // Line style changes based on if it's a prereq or coreq
-        if (prereq) {
-          // we need to add highlighted prereqs last to make them pop up over non-highlighted ones
-          if (!highlighted_classes[i]) {
-            line = new LeaderLine(
-                document.getElementById(from_box),
-                document.getElementById(to_box),
-              {
-                path: arrow_style[0],
-                color: "black",
-                startSocket: "bottom",
-                endSocket: "top",
-                // outline: true,
-                size: 2,
-                // endPlugOutline: true,
-                endPlugSize: 1.5,
-                startSocketGravity: 10,
-                endSocketGravity: 10,
-              }
-            );
-          } else {
-            highlighted_from_boxes.push(from_box);
-            highlighted_to_boxes.push(to_box);
-          }
-        } else {
-          line = new LeaderLine(
-            document.getElementById(from_box),
-            document.getElementById(to_box),
+  // draw the prereq lines
+  for (let i in prereqs) {
+    to_box = `box${i}`;
+    for (let j in prereqs) {
+      if (prereqs[j][i]) {
+        from_box = `box${j}`;
+
+        if (!highlighted_classes[i]) {
+          new LeaderLine(
+            $(`#${from_box}`).get(0),
+            $(`#${to_box}`).get(0),
             {
-              path: "straight",
-              color: "black",
-              startPlug: "behind",
-              endPlug: "behind",
-              size: 2,
-              startSocketGravity: 10,
-              endSocketGravity: 10,
-              dash: { len: 2, gap: 4 },
-              endPlugSize: 0,
+              ...leader_line_defaults,
+              path: arrow_style[0],
+              startSocket: "bottom",
+              endSocket: "top",
+              endPlugSize: 1.5,
             }
-          );
+          )
+        } else {
+          highlighted_from_boxes.push(from_box);
+          highlighted_to_boxes.push(to_box);
         }
       }
     }
   }
 
-  // create the highlighted lines
-  for (let i = 0; i < highlighted_from_boxes.length; i++) {
-    line = new LeaderLine(
-      document.getElementById(highlighted_from_boxes[i]),
-      document.getElementById(highlighted_to_boxes[i]),
+  for (let i in coreqs) {
+    to_box = `box${i}`;
+    for (let j in coreqs) {
+      if (coreqs[j][i]) {
+        from_box = `box${j}`;
+
+        new LeaderLine(
+          $(`#${from_box}`).get(0),
+          $(`#${to_box}`).get(0),
+          {
+            ...leader_line_defaults,
+            path: "straight",
+            startPlug: "behind",
+            endPlug: "behind",
+            dash: { len: 2, gap: 4 },
+            endPlugSize: 0,
+          }
+        )
+      }
+    }
+  }
+
+  for (let i in highlighted_from_boxes) {
+    new LeaderLine(
+      $(`#${highlighted_from_boxes[i]}`).get(0),
+      $(`#${highlighted_to_boxes[i]}`).get(0),
       {
+        ...leader_line_defaults,
         path: arrow_style[0],
         startSocket: "bottom",
         endSocket: "top",
-        // outline: true,
-        size: 2,
         color: highlight_colors[0],
-        // endPlugOutline: true,
         endPlugSize: 1.5,
-        startSocketGravity: 10,
-        endSocketGravity: 10,
       }
-    );
+    )
   }
-
-  // now set the z index of all of the leader lines to be 0
-  $(".leader-line").css("z-index", "-1");
 }
 
 // Enter or exit highlight mode
@@ -364,6 +413,9 @@ function highlightPrereqs() {
     }
     $(".box").css("cursor", "move");
   }
+
+  // set z index to keep all lines behind the boxes
+  $(".leader-line").css("z-index", "-1");
 }
 
 // change color of prereq arrows
@@ -371,41 +423,35 @@ function drawHighlight() {
   // invert highlight status of box
   let box_num = Number(this.id.match(/\d+/g)[0]);
   highlighted_classes[box_num] = !highlighted_classes[box_num];
-  $(".leader-line").remove();
-  generateReqs(true);
-  generateReqs(false);
+  resetLines();
 }
 
 function changeArrowStyle() {
   let temp = arrow_style.shift();
   arrow_style.push(temp);
 
-  $(".leader-line").remove();
-  generateReqs(true);
-  generateReqs(false);
+  resetLines();
 }
 
 function changeArrowColor() {
   let temp = highlight_colors.shift();
   highlight_colors.push(temp);
 
-  $(".leader-line").remove();
-  generateReqs(true);
-  generateReqs(false);
+  resetLines();
 }
 
 // Drag and Drop functionality: much of this taken from https://web.dev/drag-and-drop/
 function handleDragStart(e) {
-  this.style.opacity = "0.4";
+  e.target.style.opacity = "0.4";
 
-  dragSrcEl = this;
+  dragSrcEl = e.target;
 
   e.dataTransfer.effectAllowed = "move";
-  e.dataTransfer.setData("text/html", this.innerHTML);
+  e.dataTransfer.setData("text/html", e.target.innerHTML);
 }
 
-function handleDragEnd(_e) {
-  this.style.opacity = "1";
+function handleDragEnd(e) {
+  e.target.style.opacity = "1";
 }
 
 function handleDragOver(e) {
@@ -438,17 +484,14 @@ function handleDrop(e) {
   }
 
   // Clear out any req lines
-  $(".leader-line").remove();
-  generateReqs(true);
-  generateReqs(false);
+  resetLines();
+
   return false;
 }
 
 function editClasses() {
-  // Two options: Either we're choosing to edit classes, or we're done editing
-
   // If editing, remove span, make editable
-  if (this.textContent == "Edit Classes") {
+  if ($("#editClasses").text() == "Edit Classes") {
     $(".box").find("span").remove();
     let boxes = document.getElementsByClassName("box");
     for (let i = 0; i < boxes.length; i++) {
@@ -456,10 +499,10 @@ function editClasses() {
       boxes[i].setAttribute("draggable", "false");
     }
     $(".box").css("cursor", "text");
-    this.textContent = "Done Editing";
+    $("#editClasses").text("Done Editing");
   }
   // If done editing, add span back
-  else if (this.textContent == "Done Editing") {
+  else if ($("#editClasses").text() == "Done Editing") {
     let boxes = document.getElementsByClassName("box");
     for (let i = 0; i < boxes.length; i++) {
       boxes[i].setAttribute("contenteditable", "false");
@@ -473,210 +516,88 @@ function editClasses() {
       spans[i].onclick = deleteText;
     }
     $(".box").css("cursor", "move");
-    this.textContent = "Edit Classes";
+    $("#editClasses").text("Edit Classes");
   }
 }
 
-// function openClassForm() {
-//     console.log(test1);
-//     let form = document.getElementById('newClassForm');
-//     form.style.display = "block";
-//     form.style.visibility = "visible";
-// }
+function togglePrereqForm() {
+  $("#prereqForm").toggle();
 
-function openForm() {
-  let form = document.getElementById("prereqForm");
-  form.style.display = "block";
-  form.style.visibility = "visible";
   // Clear out any req lines
-  $(".leader-line").remove();
-  generateReqs(true);
-  generateReqs(false);
-}
-
-function openCoreqForm() {
-  let form = document.getElementById("coreqForm");
-  form.style.display = "block";
-  form.style.visibility = "visible";
-  // Clear out any req lines
-  $(".leader-line").remove();
-  generateReqs(true);
-  generateReqs(false);
+  resetLines();
 }
 
 function submitPrereqForm(e) {
   e.preventDefault();
+  const catalog = $("#catalogSelect").val();
+  const buttonClicked = e.originalEvent.submitter.id;
 
-  // Two options, either remove or add prereq. Figure out which
-  let buttonClicked = e.submitter;
+  // Pull values out of the submitted form and map them for easy use
+  const { from, to } = $(this)
+    .serializeArray()
+    .reduce((acc, item) => {
+      acc[item.name] = item.value;
+      return acc;
+    }, {});
 
-  let prereq = document.getElementById("prereq").value;
-  let desiredClass = document.getElementById("desiredClass").value;
-
-  if (buttonClicked == document.getElementById("addPrereqButton")) {
-    // Now we try to actually add the prereq
-    let catalog = $("#dropDownWrite").val();
-    if (data[catalog]["all_courses"][desiredClass]) {
-      data[catalog]["all_courses"][desiredClass]["prereqs"] += " " + prereq;
-    } else {
-      // If the class isn't in our records, we'll create it
-      let new_class = {
-        title: desiredClass,
-        full_description: desiredClass,
-        coreqs: "",
-        prereqs: prereq,
-      };
-
-      data[catalog]["all_courses"][desiredClass] = new_class;
-    }
+  if (buttonClicked === "addPrereq") {
+    data[catalog]["edges"]["prerequisites"].push([from, to]);
   } else {
-    // Remove the prereq
-    let catalog = $("#dropDownWrite").val();
+    // if the remove button was clicked
+    // JS can't really handle most operations on 2D arrays, so we serialize it
+    // and work with strings instead
+    const idx = data[catalog]["edges"]["prerequisites"]
+      .map((it) => JSON.stringify(it))
+      .indexOf(JSON.stringify([from, to]));
 
-    // since some boxes have multiple classes, we want to remove all prereqs between those two boxes
-    let boxes = document.getElementsByClassName("box");
-    let from_classes = [];
-    let to_classes = [];
-    const class_regex_string = /[A-Z][A-Z]+ [0-9][0-9]+/g;
-
-    for (let i = 0; i < boxes.length; i++) {
-      if (boxes[i].textContent.includes(desiredClass)) {
-        to_classes = [...boxes[i].textContent.matchAll(class_regex_string)];
-      } else if (boxes[i].textContent.includes(prereq)) {
-        from_classes = [...boxes[i].textContent.matchAll(class_regex_string)];
-      }
-    }
-
-    // now go through and remove all of the prereqs for each of the to_classes
-    for (let i = 0; i < to_classes.length; i++) {
-      for (let j = 0; j < from_classes.length; j++) {
-        if (data[catalog]["all_courses"][desiredClass]) {
-          let newPrereq = data[catalog]["all_courses"][to_classes[i]][
-            "prereqs"
-          ].replace(from_classes[j], "");
-          data[catalog]["all_courses"][to_classes[i]]["prereqs"] = newPrereq;
-        }
-      }
+    // just silently fail if no such edge exists
+    if (idx !== -1) {
+      data[catalog]["edges"]["prerequisites"].splice(idx, 1);
     }
   }
 
-  closePrereqForm();
+  // Clear out any req lines
+  resetLines();
+}
+
+function toggleCoreqForm() {
+  $("#coreqForm").toggle();
+
+  // Clear out any req lines
+  resetLines();
 }
 
 function submitCoreqForm(e) {
   e.preventDefault();
+  const catalog = $("#catalogSelect").val();
+  const buttonClicked = e.originalEvent.submitter.id;
 
-  // Two options, either remove or add coreq. Figure out which
-  let buttonClicked = e.submitter;
+  const { from, to } = $(this)
+    .serializeArray()
+    .reduce((acc, item) => {
+      acc[item.name] = item.value;
+      return acc;
+    }, {});
 
-  let coreq1 = document.getElementById("coreq1").value;
-  let coreq2 = document.getElementById("coreq2").value;
-
-  if (buttonClicked == document.getElementById("addCoreqButton")) {
-    // Now we try to actually add the coreq
-    let catalog = $("#dropDownWrite").val();
-    if (data[catalog]["all_courses"][coreq2]) {
-      data[catalog]["all_courses"][coreq2]["coreqs"] += " " + coreq1;
-    } else {
-      // If the class isn't in our records, we'll create it
-      let new_class = {
-        title: coreq2,
-        full_description: coreq2,
-        coreqs: coreq1,
-        prereqs: "",
-      };
-
-      data[catalog]["all_courses"][coreq2] = new_class;
-    }
+  if (buttonClicked == "addCoreq") {
+    data[catalog]["edges"]["corequisites"].push([from, to]);
   } else {
-    // Now we remove the coreq
-    let catalog = $("#dropDownWrite").val();
-
-    // since some boxes have multiple classes, we want to remove all coreqs between those two boxes
-    let boxes = document.getElementsByClassName("box");
-    let from_classes = [];
-    let to_classes = [];
-    const class_regex_string = /[A-Z][A-Z]+ [0-9][0-9]+/g;
-
-    for (let i = 0; i < boxes.length; i++) {
-      if (boxes[i].textContent.includes(coreq1)) {
-        to_classes = [...boxes[i].textContent.matchAll(class_regex_string)];
-      } else if (boxes[i].textContent.includes(coreq2)) {
-        from_classes = [...boxes[i].textContent.matchAll(class_regex_string)];
-      }
+    const mapped = data[catalog]["edges"]["corequisites"].map((it) =>
+      JSON.stringify(it)
+    );
+    let idx = mapped.indexOf(JSON.stringify([from, to]));
+    if (idx === -1) {
+      idx = mapped.indexOf(JSON.stringify([to, from]));
     }
-
-    // now go through and remove all of the coreqs for each of the to_classes
-    for (let i = 0; i < to_classes.length; i++) {
-      for (let j = 0; j < from_classes.length; j++) {
-        // We need to do this from both to->from and from->to since it's a coreq
-        if (data[catalog]["all_courses"][to_classes[i]]) {
-          let newCoreq = data[catalog]["all_courses"][to_classes[i]][
-            "coreqs"
-          ].replace(from_classes[j], "");
-          data[catalog]["all_courses"][to_classes[i]]["coreqs"] = newCoreq;
-        }
-        if (data[catalog]["all_courses"][from_classes[j]]) {
-          let newCoreq2 = data[catalog]["all_courses"][from_classes[j]][
-            "coreqs"
-          ].replace(to_classes[i], "");
-          data[catalog]["all_courses"][from_classes[j]]["coreqs"] = newCoreq2;
-        }
-      }
+    if (idx !== -1) {
+      data[catalog]["edges"]["corequisites"].splice(idx, 1);
     }
   }
 
-  closeCoreqForm();
+  resetLines();
 }
 
-function closePrereqForm() {
-  let form = document.getElementById("prereqForm");
-  let prereq = document.getElementById("prereq");
-  let desiredClass = document.getElementById("desiredClass");
-
-  prereq.value = "";
-  desiredClass.value = "";
-
-  form.style.display = "none";
-  form.style.visibility = "hidden";
-
-  // Clear out any req lines
-  $(".leader-line").remove();
-  generateReqs(true);
-  generateReqs(false);
-}
-
-function closeCoreqForm() {
-  let form = document.getElementById("coreqForm");
-  let coreq1 = document.getElementById("coreq1");
-  let coreq2 = document.getElementById("coreq2");
-
-  coreq1.value = "";
-  coreq2.value = "";
-
-  form.style.display = "none";
-  form.style.visibility = "hidden";
-
-  // Clear out any req lines
-  $(".leader-line").remove();
-  generateReqs(true);
-  generateReqs(false);
-}
-
-// function closeClassForm() {
-//     let form = document.getElementById('newClassForm');
-//     let newClass = document.getElementById('newClass');
-//     let newClassSem = document.getElementById('newClassSem');
-
-//     newClass.value = "";
-//     newClassSem.value = "";
-
-//     form.style.display = "none";
-//     form.style.visibility = "hidden";
-
-// }
-
-function printFunction() {
+function prettyPrint() {
   // change the width of page to match a piece of printer paper
   let widthContainer = document.getElementById("widthContainer");
   widthContainer.style.width = "1063px";
@@ -704,9 +625,7 @@ function printFunction() {
 
   // redraw lines
   // Clear out any req lines
-  $(".leader-line").remove();
-  generateReqs(true);
-  generateReqs(false);
+  resetLines();
 
   window.print();
 
@@ -735,15 +654,17 @@ function printFunction() {
   widthContainer.style.width = null;
   widthContainer.style.height = null;
   // Clear out any req lines
-  $(".leader-line").remove();
-  generateReqs(true);
-  generateReqs(false);
+  resetLines();
 }
 
 function deleteText() {
   this.parentNode.childNodes[1].textContent = "";
 
   // Redraw the lines in case cells get resized
+  resetLines();
+}
+
+function resetLines() {
   $(".leader-line").remove();
   generateReqs(true);
   generateReqs(false);
