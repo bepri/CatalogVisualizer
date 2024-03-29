@@ -36,7 +36,7 @@ To start a hot-reloadable webpage to test changes as you code, run `make dev`. T
 
 ### Updating `catalogs.json`
 The catalog file is where all of the data for the website lives. It uses a defined structure to represent a graph of classes for the website to render. A skeleton schema with comments can be found below.
-```json
+```
 {
     "cs_2023": { // Name of the catalog. No format is enforced right now for this.
         "nodes": { // The "nodes" key will contain one node for each class
