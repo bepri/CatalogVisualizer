@@ -8,7 +8,7 @@ First, make sure you have [Node.js](https://nodejs.org/en/download) installed on
 As this was written for EECS, these instructions are for our own "webhome" infrastructure. More generic instructions will follow.
 
 First, clone it to your webhome directory. If you want it to be on a subpage, put it in a subdirectory. For example, if you wish to host at https://web.eecs.utk.edu/~netid/Visualizer, run the following:
-```sh
+```
 git clone git@github.com:bepri/Catalog-Visualizer.git $HOME/webhome/Visualizer
 cd !$
 make build
@@ -17,7 +17,7 @@ make build
 This results in all the static files you need. By default, the Makefile's `build` recipe will set the appropriate permissions for webhome. However, if this website is ever updated to need any sort of write access, these will need changes. Contact EECS IT for help with this.
 
 A target for updating all of the packages used to build the server exists too:
-```sh
+```
 make update
 ```
 
