@@ -1,3 +1,6 @@
+# Archived
+This project was written as part of an independent study course under Dr. Michael Berry at EECS @ UTK. It has since been migrated under his ownership on UTK's private Git instance and will not be updated here.
+
 # CatalogVisualizer
 Web application to generate flowchart-like graphics for university degrees. Written for EECS @ UTK.
 
